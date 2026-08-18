@@ -26,7 +26,22 @@
       </div>
     </header>
 
-    <main class="workspace">
+    <main class="home-screen" id="home-screen">
+      <section class="home-card">
+        <p class="eyebrow">Votre atelier de puzzle vidéo</p>
+        <h1>Transformez une image en défi personnel.</h1>
+        <p class="home-intro">Choisissez votre nom, importez une image, sélectionnez la difficulté, puis assemblez-la pièce par pièce.</p>
+        <div class="setup-grid">
+          <label class="setup-field">Nom du joueur<input id="player-name" type="text" placeholder="Votre prénom" autocomplete="name"></label>
+          <div class="setup-field"><span>Image du puzzle</span><button class="upload-card" id="home-image-button" type="button"><span class="upload-icon">▧</span><strong id="home-image-label">Choisir une image</strong><small>Depuis votre galerie</small></button><input id="home-image-input" type="file" accept="image/*" hidden></div>
+          <div class="setup-field"><span>Difficulté</span><div class="difficulty-options"><button class="difficulty-option selected" data-pieces="6" type="button">6 pièces</button><button class="difficulty-option" data-pieces="9" type="button">9 pièces</button><button class="difficulty-option" data-pieces="12" type="button">12 pièces</button><button class="difficulty-option" data-pieces="16" type="button">16 pièces</button></div></div>
+        </div>
+        <div class="home-summary" id="home-summary"><span class="summary-image placeholder" id="home-image-preview">▧</span><div><strong id="home-summary-name">Votre partie solo</strong><small id="home-summary-detail">Ajoutez une image pour commencer</small></div></div>
+        <button class="wide-primary start-game-button" id="start-game" type="button" disabled>Commencer le jeu <span>→</span></button>
+      </section>
+    </main>
+
+    <main class="workspace hidden" id="game-screen">
       <section class="game-column" aria-labelledby="game-title">
         <div class="game-heading">
           <div>
@@ -34,14 +49,13 @@
             <h1 id="game-title">Assemblez le flux, pièce par pièce.</h1>
           </div>
           <div class="heading-actions">
-            <button class="secondary-button" id="reset-puzzle"><span class="rotate-icon">↻</span> Mélanger</button>
             <button class="primary-button" id="share-main">♧ <span>Inviter</span></button>
           </div>
         </div>
 
         <div class="puzzle-stage" id="puzzle-stage">
           <div class="stage-grid" aria-hidden="true"></div>
-          <div class="puzzle-board" id="puzzle-board" aria-label="Plateau de puzzle vidéo"></div>
+          <div class="puzzle-layout"><div class="reference-card"><span class="section-label">Image modèle</span><img id="reference-image" alt="Image originale du puzzle"></div><div class="puzzle-board" id="puzzle-board" aria-label="Plateau de puzzle vidéo"></div></div>
           <div class="stage-hint"><span class="hint-icon">⌘</span><span>Glissez les pièces vers leur emplacement</span></div>
           <div class="video-badge"><span class="status-dot"></span><span id="source-badge">Votre image · exemple</span></div>
         </div>
@@ -69,7 +83,7 @@
 
         <div class="sidebar-content" id="tab-board">
           <div class="panel-heading"><div><p class="eyebrow">Configuration</p><h2>Votre partie</h2></div><span class="live-label"><span class="status-dot"></span> Solo</span></div>
-          <div class="control-section source-section"><label class="section-label">Source de votre puzzle</label><div class="source-actions"><button class="source-button selected" id="start-camera" type="button"><span>◉</span><strong>Me filmer</strong><small>Caméra en direct</small></button><button class="source-button" id="capture-photo" type="button"><span>◎</span><strong>Prendre une photo</strong><small>Depuis votre visage</small></button><button class="source-button" id="choose-image" type="button"><span>▧</span><strong>Galerie</strong><small>Choisir une image</small></button></div><input id="image-input" type="file" accept="image/*" hidden><canvas id="capture-canvas" hidden></canvas></div>
+          <div class="control-section source-section"><label class="section-label">Votre source</label><div class="source-actions"><button class="source-button selected" id="start-camera" type="button"><span>◉</span><strong>Me filmer</strong><small>Caméra en direct</small></button><button class="source-button" id="capture-photo" type="button"><span>◎</span><strong>Photo caméra</strong><small>Depuis votre visage</small></button></div><input id="image-input" type="file" accept="image/*" hidden><canvas id="capture-canvas" hidden></canvas></div>
           <div class="source-note" id="source-note">Autorisez la caméra pour transformer votre vidéo en puzzle.</div>
           <div class="control-section"><label class="section-label">Taille du puzzle</label><div class="grid-options" id="grid-options"><button class="grid-option selected" data-pieces="6"><strong>6</strong><span>Départ</span></button><button class="grid-option" data-pieces="9"><strong>9</strong><span>Avancé</span></button><button class="grid-option" data-pieces="12"><strong>12</strong><span>Expert</span></button><button class="grid-option" data-pieces="16"><strong>16</strong><span>Maître</span></button></div></div>
           <div class="rule"></div>
@@ -87,6 +101,7 @@
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="modal-backdrop hidden" id="image-modal"><div class="modal image-confirm-modal"><span class="modal-icon">▧</span><h2>Utiliser cette image ?</h2><img id="image-confirm-preview" alt="Aperçu de l'image choisie"><p>Cette image sera découpée et mélangée sur le plateau.</p><div class="modal-actions"><button class="secondary-button" id="cancel-image" type="button">Annuler</button><button class="primary-button" id="confirm-image" type="button">Confirmer l'image</button></div></div></div>
   <div class="modal-backdrop hidden" id="leave-modal"><div class="modal"><span class="modal-icon">!</span><h2>Quitter le salon ?</h2><p>Votre progression locale sera conservée uniquement sur cet appareil.</p><div class="modal-actions"><button class="secondary-button" id="cancel-leave">Annuler</button><button class="danger-button" id="confirm-leave">Quitter</button></div></div></div>
   <script src="app.js"></script>
 </body>
