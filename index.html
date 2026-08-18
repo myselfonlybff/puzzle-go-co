@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Puzzle vidéo collaboratif WebRTC en temps réel.">
+  <title>WebRTC Video Puzzle</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="Accueil WebRTC Video Puzzle">
+        <span class="brand-mark" aria-hidden="true">✦</span>
+        <span><strong>WebRTC</strong> Video Puzzle</span>
+      </a>
+      <div class="session-meta">
+        <span class="connection-status"><span class="status-dot"></span>Prêt à jouer</span>
+        <span class="player-pill" id="player-count">1/6 joueur</span>
+        <span class="timer" id="timer">00:00</span>
+        <button class="icon-button" id="share-header" title="Copier le lien de la session" aria-label="Copier le lien de la session">↗</button>
+        <button class="leave-button" id="leave-session">Quitter</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="game-column" aria-labelledby="game-title">
+        <div class="game-heading">
+          <div>
+            <p class="eyebrow">Salon privé · <span id="session-id">PUZ-7K4M</span></p>
+            <h1 id="game-title">Assemblez le flux, pièce par pièce.</h1>
+          </div>
+          <div class="heading-actions">
+            <button class="secondary-button" id="reset-puzzle"><span class="rotate-icon">↻</span> Mélanger</button>
+            <button class="primary-button" id="share-main">♧ <span>Inviter</span></button>
+          </div>
+        </div>
+
+        <div class="puzzle-stage" id="puzzle-stage">
+          <div class="stage-grid" aria-hidden="true"></div>
+          <div class="puzzle-board" id="puzzle-board" aria-label="Plateau de puzzle vidéo"></div>
+          <div class="stage-hint"><span class="hint-icon">⌘</span><span>Glissez les pièces vers leur emplacement</span></div>
+          <div class="video-badge"><span class="status-dot"></span><span id="source-badge">Votre image · exemple</span></div>
+        </div>
+
+        <div class="game-footer">
+          <div class="camera-preview">
+            <div class="camera-placeholder"><video id="camera-preview" autoplay muted playsinline></video><img id="photo-preview" alt="Votre photo" hidden><span>Vous</span><strong id="preview-initials">NS</strong></div>
+            <div class="camera-info"><strong>Votre flux vidéo</strong><span id="media-state">Caméra et micro actifs</span></div>
+          </div>
+          <div class="media-controls">
+            <button class="media-button" id="camera-toggle" title="Activer ou désactiver la caméra" aria-label="Activer ou désactiver la caméra">▣</button>
+            <button class="media-button" id="mic-toggle" title="Activer ou désactiver le micro" aria-label="Activer ou désactiver le micro">⌁</button>
+          </div>
+          <div class="progress-wrap"><div class="progress-label"><span>Progression</span><strong id="progress-label">0 / 6 pièces</strong></div><div class="progress-track"><span id="progress-bar"></span></div></div>
+        </div>
+      </section>
+
+      <aside class="sidebar">
+        <nav class="tabs" aria-label="Navigation du salon">
+          <button class="tab active" data-tab="board">◈ <span>Plateau</span></button>
+          <button class="tab locked" data-tab="chat" id="chat-tab" title="Requis : 2 joueurs minimum">◇ <span>Chat</span><small>⌑</small></button>
+          <button class="tab" data-tab="players">♙ <span>Joueurs</span></button>
+          <button class="tab" data-tab="share">↗ <span>Partager</span></button>
+        </nav>
+
+        <div class="sidebar-content" id="tab-board">
+          <div class="panel-heading"><div><p class="eyebrow">Configuration</p><h2>Votre partie</h2></div><span class="live-label"><span class="status-dot"></span> Solo</span></div>
+          <div class="control-section source-section"><label class="section-label">Source de votre puzzle</label><div class="source-actions"><button class="source-button selected" id="start-camera" type="button"><span>◉</span><strong>Me filmer</strong><small>Caméra en direct</small></button><button class="source-button" id="capture-photo" type="button"><span>◎</span><strong>Prendre une photo</strong><small>Depuis votre visage</small></button><button class="source-button" id="choose-image" type="button"><span>▧</span><strong>Galerie</strong><small>Choisir une image</small></button></div><input id="image-input" type="file" accept="image/*" hidden><canvas id="capture-canvas" hidden></canvas></div>
+          <div class="source-note" id="source-note">Autorisez la caméra pour transformer votre vidéo en puzzle.</div>
+          <div class="control-section"><label class="section-label">Taille du puzzle</label><div class="grid-options" id="grid-options"><button class="grid-option selected" data-pieces="6"><strong>6</strong><span>Départ</span></button><button class="grid-option" data-pieces="9"><strong>9</strong><span>Avancé</span></button><button class="grid-option" data-pieces="12"><strong>12</strong><span>Expert</span></button><button class="grid-option" data-pieces="16"><strong>16</strong><span>Maître</span></button></div></div>
+          <div class="rule"></div>
+          <div class="tip-panel"><span class="tip-symbol">✦</span><div><strong>Prêt pour le multi ?</strong><p>Invitez un ami pour débloquer le chat et les interactions en temps réel.</p></div></div>
+          <button class="wide-primary" id="invite-panel">↗ Inviter un joueur</button>
+        </div>
+
+        <div class="sidebar-content hidden" id="tab-chat"><div class="panel-heading"><div><p class="eyebrow">WebRTC DataChannel</p><h2>Messages</h2></div><span class="muted-label">En attente</span></div><div class="empty-state"><span class="empty-icon">◇</span><strong>Chat verrouillé</strong><p>Le chat s'active dès qu'un deuxième joueur rejoint le salon.</p></div><form class="chat-form" id="chat-form"><input id="chat-input" placeholder="Écrire un message..." disabled><button class="send-button" disabled aria-label="Envoyer">➤</button></form></div>
+
+        <div class="sidebar-content hidden" id="tab-players"><div class="panel-heading"><div><p class="eyebrow">Participants</p><h2>Dans le salon</h2></div><span class="player-pill small">1 / 6</span></div><div class="players-list"><div class="player-row"><div class="avatar local">NS<span class="online-dot"></span></div><div><strong>Nlend Sharon</strong><span>Hôte · Vous</span></div><span class="mic-state">⌁</span></div></div><button class="wide-secondary" id="invite-player">↗ Copier le lien d'invitation</button></div>
+
+        <div class="sidebar-content hidden" id="tab-share"><div class="panel-heading"><div><p class="eyebrow">Lien de session</p><h2>Inviter vos amis</h2></div><span class="share-mark">↗</span></div><p class="share-copy">Partagez ce lien pour rejoindre votre salon de puzzle vidéo.</p><div class="share-url" id="share-url"></div><button class="wide-primary" id="copy-link">▣ Copier le lien</button><p class="share-note">Jusqu'à 6 joueurs · Aucun compte requis</p></div>
+      </aside>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="modal-backdrop hidden" id="leave-modal"><div class="modal"><span class="modal-icon">!</span><h2>Quitter le salon ?</h2><p>Votre progression locale sera conservée uniquement sur cet appareil.</p><div class="modal-actions"><button class="secondary-button" id="cancel-leave">Annuler</button><button class="danger-button" id="confirm-leave">Quitter</button></div></div></div>
+  <script src="app.js"></script>
+</body>
+</html>
