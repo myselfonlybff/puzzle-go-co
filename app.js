@@ -1,4 +1,4 @@
-const state = { pieces: 6, solved: new Set(), camera: true, mic: true, seconds: 0, started: false, sourceUrl: '', sourceName: 'exemple', stream: null, order: [] };
+const state = { pieces: 6, solved: new Set(), camera: true, mic: true, seconds: 0, started: false, sourceUrl: '', sourceName: 'exemple', stream: null, order: [], selectedPiece: null, playerName: '' };
 const sessionId = new URLSearchParams(window.location.search).get('session') || 'PUZ-7K4M';
 const sessionUrl = `${window.location.origin}${window.location.pathname}?session=${sessionId}`;
 const board = document.querySelector('#puzzle-board');
@@ -6,6 +6,10 @@ const toast = document.querySelector('#toast');
 const cameraPreview = document.querySelector('#camera-preview');
 const photoPreview = document.querySelector('#photo-preview');
 const captureCanvas = document.querySelector('#capture-canvas');
+const homeScreen = document.querySelector('#home-screen');
+const gameScreen = document.querySelector('#game-screen');
+const homeImageInput = document.querySelector('#home-image-input');
+let pendingImageUrl = '';
 
 function setSource(url, name) {
   if (!url) return false;
@@ -13,6 +17,7 @@ function setSource(url, name) {
   state.sourceName = name;
   document.querySelector('#source-badge').textContent = `Votre image · ${name}`;
   document.querySelector('#source-note').textContent = `${name} est prête : chaque pièce reprend sa partie de l'image.`;
+  document.querySelector('#reference-image').src = url;
   renderPuzzle();
   return true;
 }
@@ -50,10 +55,33 @@ function renderPuzzle() {
       piece.style.backgroundColor = '#1e293b';
       piece.classList.add('image-piece');
     }
-    piece.addEventListener('click', () => lockPiece(piece));
+    piece.addEventListener('click', () => selectPiece(piece));
     board.appendChild(piece);
   }
   updateProgress();
+}
+
+function selectPiece(piece) {
+  if (state.selectedPiece === piece) {
+    piece.classList.remove('selected-piece');
+    state.selectedPiece = null;
+    return;
+  }
+  if (!state.selectedPiece) {
+    state.selectedPiece = piece;
+    piece.classList.add('selected-piece');
+    showToast('Sélectionnez une seconde pièce pour échanger');
+    return;
+  }
+  const first = state.selectedPiece;
+  const firstIndex = Number(first.dataset.index);
+  const secondIndex = Number(piece.dataset.index);
+  const firstPosition = state.order.indexOf(firstIndex);
+  const secondPosition = state.order.indexOf(secondIndex);
+  [state.order[firstPosition], state.order[secondPosition]] = [state.order[secondPosition], state.order[firstPosition]];
+  state.selectedPiece = null;
+  renderPuzzle();
+  showToast('Pièces échangées');
 }
 
 function lockPiece(piece) {
@@ -162,11 +190,67 @@ async function copySessionLink(button) {
 
 document.querySelector('#session-id').textContent = sessionId;
 document.querySelector('#share-url').textContent = sessionUrl;
+document.querySelector('#reference-image').src = state.sourceUrl;
+
+function updateStartState() {
+  const name = document.querySelector('#player-name').value.trim();
+  const ready = Boolean(name && pendingImageUrl);
+  document.querySelector('#start-game').disabled = !ready;
+  document.querySelector('#home-summary-name').textContent = name ? `Partie de ${name}` : 'Votre partie solo';
+  document.querySelector('#home-summary-detail').textContent = pendingImageUrl ? `${state.pieces} pièces · image prête` : 'Ajoutez une image pour commencer';
+}
+
+document.querySelector('#player-name').addEventListener('input', updateStartState);
+document.querySelectorAll('.difficulty-option').forEach((option) => option.addEventListener('click', () => {
+  document.querySelectorAll('.difficulty-option').forEach((item) => item.classList.remove('selected'));
+  option.classList.add('selected');
+  state.pieces = Number(option.dataset.pieces);
+  updateStartState();
+}));
+document.querySelector('#home-image-button').addEventListener('click', () => homeImageInput.click());
+homeImageInput.addEventListener('change', (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const image = new Image();
+  image.addEventListener('load', () => {
+    pendingImageUrl = url;
+    document.querySelector('#image-confirm-preview').src = url;
+    document.querySelector('#home-image-label').textContent = file.name;
+    document.querySelector('#image-modal').classList.remove('hidden');
+  }, { once: true });
+  image.src = url;
+});
+document.querySelector('#cancel-image').addEventListener('click', () => {
+  if (pendingImageUrl) URL.revokeObjectURL(pendingImageUrl);
+  pendingImageUrl = '';
+  document.querySelector('#image-modal').classList.add('hidden');
+  updateStartState();
+});
+document.querySelector('#confirm-image').addEventListener('click', () => {
+  const preview = document.querySelector('#home-image-preview');
+  preview.classList.remove('placeholder');
+  preview.style.backgroundImage = `url(${JSON.stringify(pendingImageUrl)})`;
+  preview.textContent = '';
+  document.querySelector('#image-modal').classList.add('hidden');
+  updateStartState();
+});
+document.querySelector('#start-game').addEventListener('click', () => {
+  state.playerName = document.querySelector('#player-name').value.trim();
+  state.order = [];
+  setSource(pendingImageUrl, 'galerie');
+  homeScreen.classList.add('hidden');
+  gameScreen.classList.remove('hidden');
+  document.querySelector('#preview-initials').textContent = state.playerName.slice(0, 2).toUpperCase();
+  document.querySelector('#home-summary-name').textContent = `Partie de ${state.playerName}`;
+  renderPuzzle();
+  startTimer();
+});
 renderPuzzle();
 
 document.querySelector('#start-camera').addEventListener('click', startCamera);
 document.querySelector('#capture-photo').addEventListener('click', capturePhoto);
-document.querySelector('#choose-image').addEventListener('click', () => document.querySelector('#image-input').click());
+document.querySelector('#choose-image')?.addEventListener('click', () => document.querySelector('#image-input').click());
 document.querySelector('#image-input').addEventListener('change', (event) => loadGalleryImage(event.target.files[0]));
 
 document.querySelectorAll('.grid-option').forEach((option) => option.addEventListener('click', () => {
@@ -177,12 +261,6 @@ document.querySelectorAll('.grid-option').forEach((option) => option.addEventLis
   renderPuzzle();
 }));
 
-document.querySelector('#reset-puzzle').addEventListener('click', () => {
-  shuffleOrder();
-  renderPuzzle();
-  document.querySelector('.rotate-icon').animate([{ transform: 'rotate(0)' }, { transform: 'rotate(360deg)' }], { duration: 450 });
-  showToast('Puzzle mélangé');
-});
 ['#share-header', '#share-main', '#invite-panel', '#invite-player', '#copy-link'].forEach((selector) => document.querySelector(selector).addEventListener('click', (event) => copySessionLink(event.currentTarget)));
 
 document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click', () => {
