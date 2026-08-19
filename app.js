@@ -4,7 +4,7 @@ const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
 const sessionId = query.get('session') || hash.get('session') || 'PUZ-7K4M';
 const isGuest = query.has('session') || hash.has('session');
 const sessionUrl = `${window.location.origin}${window.location.pathname}?session=${sessionId}`;
-const signalUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/signal`;
+const signalUrl = 'wss://puzzle-go-co.onrender.com/signal';
 const board = document.querySelector('#puzzle-board');
 const toast = document.querySelector('#toast');
 const cameraPreview = document.querySelector('#home-camera-preview');
