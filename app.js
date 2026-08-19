@@ -1,5 +1,7 @@
 const state = { pieces: 6, solved: new Set(), camera: true, mic: true, seconds: 0, started: false, sourceUrl: '', sourceName: 'exemple', stream: null, order: [], selectedPiece: null, playerName: '' };
-const sessionId = new URLSearchParams(window.location.search).get('session') || 'PUZ-7K4M';
+const query = new URLSearchParams(window.location.search);
+const sessionId = query.get('session') || 'PUZ-7K4M';
+const isGuest = query.has('session');
 const sessionUrl = `${window.location.origin}${window.location.pathname}?session=${sessionId}`;
 const signalUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/signal`;
 const board = document.querySelector('#puzzle-board');
@@ -15,6 +17,7 @@ let pendingImageUrl = '';
 let socket = null;
 let isHost = false;
 let pendingParticipant = '';
+let hostPlayer = 'l’hôte';
 
 function setSource(url, name) {
   if (!url) return false;
@@ -133,6 +136,7 @@ async function startCamera() {
     cameraPreview.srcObject = state.stream;
     cameraPreview.hidden = false;
     photoPreview.hidden = true;
+    await cameraPreview.play();
     await waitForVideo(cameraPreview);
     state.camera = true;
     document.querySelector('#camera-modal').classList.remove('hidden');
@@ -222,7 +226,7 @@ function connectSession() {
   socket.addEventListener('open', () => socket.send(JSON.stringify({ type: 'join', session: sessionId, player: state.playerName || 'Joueur' })));
   socket.addEventListener('message', (event) => {
     const message = JSON.parse(event.data);
-    if (message.type === 'joined') { isHost = message.host; updatePlayers(message.count); if (message.pending) showToast('Demande envoyée à l’hôte'); if (message.state) applyGameState(message.state); if (isHost) broadcastGameState(); }
+    if (message.type === 'joined') { isHost = message.host; hostPlayer = message.hostPlayer || hostPlayer; if (isGuest) { document.querySelector('#home-title').textContent = `Jouer avec ${hostPlayer}`; } updatePlayers(message.count); if (message.pending) showToast('Demande envoyée à l’hôte'); if (message.state) applyGameState(message.state); if (isHost) broadcastGameState(); }
     if (message.type === 'participant-request' && isHost) { pendingParticipant = message.player; document.querySelector('#participant-message').textContent = `${message.player} souhaite rejoindre la partie et le chat.`; document.querySelector('#participant-modal').classList.remove('hidden'); }
     if (message.type === 'peer-joined') { updatePlayers(message.count); showToast(`${message.player || 'Un joueur'} a rejoint la partie`); }
     if (message.type === 'peer-left') updatePlayers(message.count);
@@ -263,10 +267,21 @@ document.querySelector('#reference-image').src = state.sourceUrl;
 
 function updateStartState() {
   const name = document.querySelector('#player-name').value.trim();
-  const ready = Boolean(name && pendingImageUrl);
+  const ready = isGuest ? Boolean(name) : Boolean(name && pendingImageUrl);
   document.querySelector('#start-game').disabled = !ready;
   document.querySelector('#home-summary-name').textContent = name ? `Partie de ${name}` : 'Votre partie solo';
   document.querySelector('#home-summary-detail').textContent = pendingImageUrl ? `${state.pieces} pièces · image prête` : 'Ajoutez une image pour commencer';
+}
+
+function configureGuestHome() {
+  if (!isGuest) return;
+  document.querySelector('#home-eyebrow').textContent = 'Invitation à rejoindre';
+  document.querySelector('#home-title').textContent = `Jouer avec ${hostPlayer}`;
+  document.querySelector('#home-intro').textContent = 'Entrez votre nom pour demander l’accès à la partie en cours.';
+  document.querySelectorAll('.host-only').forEach((element) => { element.hidden = true; });
+  document.querySelector('#home-summary-detail').textContent = 'La photo et la difficulté sont définies par l’hôte';
+  document.querySelector('#start-game').textContent = 'Jouer avec l’hôte →';
+  document.querySelector('#cancel-guest').hidden = false;
 }
 
 document.querySelector('#player-name').addEventListener('input', updateStartState);
@@ -314,6 +329,15 @@ document.querySelector('#take-camera-photo').addEventListener('click', capturePh
 homeCameraButton.addEventListener('click', startCamera);
 document.querySelector('#start-game').addEventListener('click', () => {
   state.playerName = document.querySelector('#player-name').value.trim();
+  if (isGuest) {
+    homeScreen.classList.add('hidden');
+    gameScreen.classList.remove('hidden');
+    document.querySelector('#game-title').textContent = `Connexion à la partie de ${hostPlayer}`;
+    document.querySelector('#source-badge').textContent = 'En attente de l’hôte';
+    document.querySelector('.stage-hint').lastElementChild.textContent = 'Votre demande est en attente de validation';
+    connectSession();
+    return;
+  }
   state.order = [];
   setSource(pendingImageUrl, 'galerie');
   homeScreen.classList.add('hidden');
@@ -326,6 +350,8 @@ document.querySelector('#start-game').addEventListener('click', () => {
   startTimer();
   connectSession();
 });
+document.querySelector('#cancel-guest').addEventListener('click', () => { window.location.href = window.location.pathname; });
+configureGuestHome();
 renderPuzzle();
 
 document.querySelector('#return-home').addEventListener('click', () => window.location.href = window.location.pathname);
