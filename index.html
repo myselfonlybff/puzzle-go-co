@@ -33,7 +33,7 @@
         <p class="home-intro">Choisissez votre nom, importez une image, sélectionnez la difficulté, puis assemblez-la pièce par pièce.</p>
         <div class="setup-grid">
           <label class="setup-field">Nom du joueur<input id="player-name" type="text" placeholder="Votre prénom" autocomplete="name"></label>
-          <div class="setup-field"><span>Image du puzzle</span><button class="upload-card" id="home-image-button" type="button"><span class="upload-icon">▧</span><strong id="home-image-label">Choisir une image</strong><small>Depuis votre galerie</small></button><input id="home-image-input" type="file" accept="image/*" hidden></div>
+          <div class="setup-field"><span>Image du puzzle</span><div class="home-source-actions"><button class="upload-card" id="home-image-button" type="button"><span class="upload-icon">▧</span><strong id="home-image-label">Choisir une image</strong><small>Depuis votre galerie</small></button><button class="upload-card" id="home-camera-button" type="button"><span class="upload-icon">◎</span><strong>Prendre une photo</strong><small>Autorisation demandée au clic</small></button></div><input id="home-image-input" type="file" accept="image/*" hidden></div>
           <div class="setup-field"><span>Difficulté</span><div class="difficulty-options"><button class="difficulty-option selected" data-pieces="6" type="button">6 pièces</button><button class="difficulty-option" data-pieces="9" type="button">9 pièces</button><button class="difficulty-option" data-pieces="12" type="button">12 pièces</button><button class="difficulty-option" data-pieces="16" type="button">16 pièces</button></div></div>
         </div>
         <div class="home-summary" id="home-summary"><span class="summary-image placeholder" id="home-image-preview">▧</span><div><strong id="home-summary-name">Votre partie solo</strong><small id="home-summary-detail">Ajoutez une image pour commencer</small></div></div>
@@ -56,19 +56,12 @@
         <div class="puzzle-stage" id="puzzle-stage">
           <div class="stage-grid" aria-hidden="true"></div>
           <div class="puzzle-layout"><div class="reference-card"><span class="section-label">Image modèle</span><img id="reference-image" alt="Image originale du puzzle"></div><div class="puzzle-board" id="puzzle-board" aria-label="Plateau de puzzle vidéo"></div></div>
-          <div class="stage-hint"><span class="hint-icon">⌘</span><span>Glissez les pièces vers leur emplacement</span></div>
+          <div class="stage-hint"><span class="hint-icon">⌘</span><span>Cliquez sur deux pièces pour échanger leur position</span></div>
           <div class="video-badge"><span class="status-dot"></span><span id="source-badge">Votre image · exemple</span></div>
         </div>
 
         <div class="game-footer">
-          <div class="camera-preview">
-            <div class="camera-placeholder"><video id="camera-preview" autoplay muted playsinline></video><img id="photo-preview" alt="Votre photo" hidden><span>Vous</span><strong id="preview-initials">NS</strong></div>
-            <div class="camera-info"><strong>Votre flux vidéo</strong><span id="media-state">Caméra et micro actifs</span></div>
-          </div>
-          <div class="media-controls">
-            <button class="media-button" id="camera-toggle" title="Activer ou désactiver la caméra" aria-label="Activer ou désactiver la caméra">▣</button>
-            <button class="media-button" id="mic-toggle" title="Activer ou désactiver le micro" aria-label="Activer ou désactiver le micro">⌁</button>
-          </div>
+          <div class="camera-preview"><div class="camera-placeholder"><img id="photo-preview" alt="Image du puzzle" hidden><strong id="preview-initials">PU</strong></div><div class="camera-info"><strong id="player-display-name">Votre partie</strong><span>Image sélectionnée</span></div></div>
           <div class="progress-wrap"><div class="progress-label"><span>Progression</span><strong id="progress-label">0 / 6 pièces</strong></div><div class="progress-track"><span id="progress-bar"></span></div></div>
         </div>
       </section>
@@ -83,9 +76,6 @@
 
         <div class="sidebar-content" id="tab-board">
           <div class="panel-heading"><div><p class="eyebrow">Configuration</p><h2>Votre partie</h2></div><span class="live-label"><span class="status-dot"></span> Solo</span></div>
-          <div class="control-section source-section"><label class="section-label">Votre source</label><div class="source-actions"><button class="source-button selected" id="start-camera" type="button"><span>◉</span><strong>Me filmer</strong><small>Caméra en direct</small></button><button class="source-button" id="capture-photo" type="button"><span>◎</span><strong>Photo caméra</strong><small>Depuis votre visage</small></button></div><input id="image-input" type="file" accept="image/*" hidden><canvas id="capture-canvas" hidden></canvas></div>
-          <div class="source-note" id="source-note">Autorisez la caméra pour transformer votre vidéo en puzzle.</div>
-          <div class="control-section"><label class="section-label">Taille du puzzle</label><div class="grid-options" id="grid-options"><button class="grid-option selected" data-pieces="6"><strong>6</strong><span>Départ</span></button><button class="grid-option" data-pieces="9"><strong>9</strong><span>Avancé</span></button><button class="grid-option" data-pieces="12"><strong>12</strong><span>Expert</span></button><button class="grid-option" data-pieces="16"><strong>16</strong><span>Maître</span></button></div></div>
           <div class="rule"></div>
           <div class="tip-panel"><span class="tip-symbol">✦</span><div><strong>Prêt pour le multi ?</strong><p>Invitez un ami pour débloquer le chat et les interactions en temps réel.</p></div></div>
           <button class="wide-primary" id="invite-panel">↗ Inviter un joueur</button>
@@ -101,7 +91,10 @@
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <div class="modal-backdrop hidden" id="image-modal"><div class="modal image-confirm-modal"><span class="modal-icon">▧</span><h2>Utiliser cette image ?</h2><img id="image-confirm-preview" alt="Aperçu de l'image choisie"><p>Cette image sera découpée et mélangée sur le plateau.</p><div class="modal-actions"><button class="secondary-button" id="cancel-image" type="button">Annuler</button><button class="primary-button" id="confirm-image" type="button">Confirmer l'image</button></div></div></div>
+  <div class="modal-backdrop hidden" id="image-modal"><div class="modal image-confirm-modal"><span class="modal-icon">▧</span><h2>Voulez-vous confirmer l'utilisation de cette image ?</h2><img id="image-confirm-preview" alt="Aperçu de l'image choisie"><p>Cette image sera découpée et mélangée sur le plateau.</p><div class="modal-actions"><button class="secondary-button" id="cancel-image" type="button">Annuler</button><button class="primary-button" id="confirm-image" type="button">Confirmer l'image</button></div></div></div>
+  <div class="modal-backdrop hidden" id="camera-modal"><div class="modal image-confirm-modal"><h2>Prendre une photo</h2><video id="home-camera-preview" autoplay muted playsinline></video><p>La caméra sera éteinte après la confirmation.</p><div class="modal-actions"><button class="secondary-button" id="cancel-camera" type="button">Annuler</button><button class="primary-button" id="take-camera-photo" type="button">Prendre la photo</button></div></div></div>
+  <div class="modal-backdrop hidden" id="finish-modal"><div class="modal"><span class="modal-icon">✓</span><h2>Puzzle terminé !</h2><p id="finish-stats"></p><div class="modal-actions"><button class="secondary-button" id="return-home" type="button">Retourner à l'accueil</button><button class="primary-button" id="continue-chat" type="button">Continuer le chat</button></div></div></div>
+  <div class="modal-backdrop hidden" id="participant-modal"><div class="modal"><span class="modal-icon">♙</span><h2>Demande de participation</h2><p id="participant-message"></p><div class="modal-actions"><button class="danger-button" id="reject-participant" type="button">Refuser</button><button class="primary-button" id="accept-participant" type="button">Accepter</button></div></div></div>
   <div class="modal-backdrop hidden" id="leave-modal"><div class="modal"><span class="modal-icon">!</span><h2>Quitter le salon ?</h2><p>Votre progression locale sera conservée uniquement sur cet appareil.</p><div class="modal-actions"><button class="secondary-button" id="cancel-leave">Annuler</button><button class="danger-button" id="confirm-leave">Quitter</button></div></div></div>
   <script src="app.js"></script>
 </body>
