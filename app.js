@@ -1,7 +1,8 @@
 const state = { pieces: 6, solved: new Set(), camera: true, mic: true, seconds: 0, started: false, sourceUrl: '', sourceName: 'exemple', stream: null, order: [], selectedPiece: null, playerName: '' };
 const query = new URLSearchParams(window.location.search);
-const sessionId = query.get('session') || 'PUZ-7K4M';
-const isGuest = query.has('session');
+const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+const sessionId = query.get('session') || hash.get('session') || 'PUZ-7K4M';
+const isGuest = query.has('session') || hash.has('session');
 const sessionUrl = `${window.location.origin}${window.location.pathname}?session=${sessionId}`;
 const signalUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/signal`;
 const board = document.querySelector('#puzzle-board');
