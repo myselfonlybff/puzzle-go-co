@@ -28,16 +28,17 @@
 
     <main class="home-screen" id="home-screen">
       <section class="home-card">
-        <p class="eyebrow">Votre atelier de puzzle vidéo</p>
-        <h1>Transformez une image en défi personnel.</h1>
-        <p class="home-intro">Choisissez votre nom, importez une image, sélectionnez la difficulté, puis assemblez-la pièce par pièce.</p>
+        <p class="eyebrow" id="home-eyebrow">Votre atelier de puzzle vidéo</p>
+        <h1 id="home-title">Transformez une image en défi personnel.</h1>
+        <p class="home-intro" id="home-intro">Choisissez votre nom, importez une image, sélectionnez la difficulté, puis assemblez-la pièce par pièce.</p>
         <div class="setup-grid">
           <label class="setup-field">Nom du joueur<input id="player-name" type="text" placeholder="Votre prénom" autocomplete="name"></label>
-          <div class="setup-field"><span>Image du puzzle</span><div class="home-source-actions"><button class="upload-card" id="home-image-button" type="button"><span class="upload-icon">▧</span><strong id="home-image-label">Choisir une image</strong><small>Depuis votre galerie</small></button><button class="upload-card" id="home-camera-button" type="button"><span class="upload-icon">◎</span><strong>Prendre une photo</strong><small>Autorisation demandée au clic</small></button></div><input id="home-image-input" type="file" accept="image/*" hidden></div>
-          <div class="setup-field"><span>Difficulté</span><div class="difficulty-options"><button class="difficulty-option selected" data-pieces="6" type="button">6 pièces</button><button class="difficulty-option" data-pieces="9" type="button">9 pièces</button><button class="difficulty-option" data-pieces="12" type="button">12 pièces</button><button class="difficulty-option" data-pieces="16" type="button">16 pièces</button></div></div>
+          <div class="setup-field host-only"><span>Image du puzzle</span><div class="home-source-actions"><button class="upload-card" id="home-image-button" type="button"><span class="upload-icon">▧</span><strong id="home-image-label">Choisir une image</strong><small>Depuis votre galerie</small></button><button class="upload-card" id="home-camera-button" type="button"><span class="upload-icon">◎</span><strong>Prendre une photo</strong><small>Autorisation demandée au clic</small></button></div><input id="home-image-input" type="file" accept="image/*" hidden></div>
+          <div class="setup-field host-only"><span>Difficulté</span><div class="difficulty-options"><button class="difficulty-option selected" data-pieces="6" type="button">6 pièces</button><button class="difficulty-option" data-pieces="9" type="button">9 pièces</button><button class="difficulty-option" data-pieces="12" type="button">12 pièces</button><button class="difficulty-option" data-pieces="16" type="button">16 pièces</button></div></div>
         </div>
         <div class="home-summary" id="home-summary"><span class="summary-image placeholder" id="home-image-preview">▧</span><div><strong id="home-summary-name">Votre partie solo</strong><small id="home-summary-detail">Ajoutez une image pour commencer</small></div></div>
         <button class="wide-primary start-game-button" id="start-game" type="button" disabled>Commencer le jeu <span>→</span></button>
+        <button class="secondary-button guest-cancel" id="cancel-guest" type="button" hidden>Annuler</button>
       </section>
     </main>
 
