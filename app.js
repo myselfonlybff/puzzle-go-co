@@ -1,22 +1,27 @@
 const state = { pieces: 6, solved: new Set(), camera: true, mic: true, seconds: 0, started: false, sourceUrl: '', sourceName: 'exemple', stream: null, order: [], selectedPiece: null, playerName: '' };
 const sessionId = new URLSearchParams(window.location.search).get('session') || 'PUZ-7K4M';
 const sessionUrl = `${window.location.origin}${window.location.pathname}?session=${sessionId}`;
+const signalUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/signal`;
 const board = document.querySelector('#puzzle-board');
 const toast = document.querySelector('#toast');
-const cameraPreview = document.querySelector('#camera-preview');
+const cameraPreview = document.querySelector('#home-camera-preview');
 const photoPreview = document.querySelector('#photo-preview');
 const captureCanvas = document.querySelector('#capture-canvas');
 const homeScreen = document.querySelector('#home-screen');
 const gameScreen = document.querySelector('#game-screen');
 const homeImageInput = document.querySelector('#home-image-input');
+const homeCameraButton = document.querySelector('#home-camera-button');
 let pendingImageUrl = '';
+let socket = null;
+let isHost = false;
+let pendingParticipant = '';
 
 function setSource(url, name) {
   if (!url) return false;
   state.sourceUrl = url;
   state.sourceName = name;
   document.querySelector('#source-badge').textContent = `Votre image · ${name}`;
-  document.querySelector('#source-note').textContent = `${name} est prête : chaque pièce reprend sa partie de l'image.`;
+  document.querySelector('#player-display-name').textContent = state.playerName || 'Votre partie';
   document.querySelector('#reference-image').src = url;
   renderPuzzle();
   return true;
@@ -81,6 +86,8 @@ function selectPiece(piece) {
   [state.order[firstPosition], state.order[secondPosition]] = [state.order[secondPosition], state.order[firstPosition]];
   state.selectedPiece = null;
   renderPuzzle();
+  broadcastGameState();
+  if (state.order.every((pieceIndex, position) => pieceIndex === position)) finishGame();
   showToast('Pièces échangées');
 }
 
@@ -92,11 +99,11 @@ function lockPiece(piece) {
   piece.textContent = '✓';
   startTimer();
   updateProgress();
-  if (state.solved.size === state.pieces) showToast('Puzzle complété !');
+  if (state.solved.size === state.pieces) finishGame();
 }
 
 function updateProgress() {
-  const complete = state.solved.size;
+  const complete = state.order.reduce((total, pieceIndex, position) => total + (pieceIndex === position ? 1 : 0), 0);
   document.querySelector('#progress-label').textContent = `${complete} / ${state.pieces} pièces`;
   document.querySelector('#progress-bar').style.width = `${(complete / state.pieces) * 100}%`;
 }
@@ -128,10 +135,7 @@ async function startCamera() {
     photoPreview.hidden = true;
     await waitForVideo(cameraPreview);
     state.camera = true;
-    document.querySelector('#camera-toggle').classList.remove('off');
-    document.querySelector('#source-note').textContent = 'Caméra active. Prenez une photo pour figer votre visage en puzzle.';
-    const initialFrame = captureVideoFrame();
-    if (initialFrame) setSource(initialFrame, 'caméra');
+    document.querySelector('#camera-modal').classList.remove('hidden');
     showToast('Caméra activée');
   } catch { showToast('Accès caméra refusé ou indisponible'); }
 }
@@ -158,11 +162,76 @@ async function capturePhoto() {
   await waitForVideo(cameraPreview);
   const url = captureVideoFrame();
   if (!url) { showToast('La caméra n’est pas encore prête'); return; }
-  cameraPreview.hidden = true;
-  photoPreview.hidden = false;
-  photoPreview.src = url;
-  setSource(url, 'photo');
-  showToast('Photo capturée : puzzle prêt');
+  pendingImageUrl = url;
+  document.querySelector('#image-confirm-preview').src = url;
+  document.querySelector('#camera-modal').classList.add('hidden');
+  document.querySelector('#image-modal').classList.remove('hidden');
+}
+
+function stopCamera() {
+  if (!state.stream) return;
+  state.stream.getTracks().forEach((track) => track.stop());
+  state.stream = null;
+  if (cameraPreview) cameraPreview.srcObject = null;
+}
+
+function finishGame() {
+  const minutes = String(Math.floor(state.seconds / 60)).padStart(2, '0');
+  const seconds = String(state.seconds % 60).padStart(2, '0');
+  document.querySelector('#finish-stats').textContent = `Temps : ${minutes}:${seconds} · Participants : ${document.querySelector('#player-count').textContent} · Difficulté : ${state.pieces} pièces`;
+  document.querySelector('#finish-modal').classList.remove('hidden');
+}
+
+function broadcastGameState() {
+  if (!socket || socket.readyState !== WebSocket.OPEN || !isHost) return;
+  socket.send(JSON.stringify({ type: 'game-state', state: { pieces: state.pieces, order: state.order, sourceUrl: state.sourceUrl, startedAt: state.startedAt || Date.now() } }));
+}
+
+function updatePlayers(count) {
+  document.querySelector('#player-count').textContent = `${count}/6 joueur${count > 1 ? 's' : ''}`;
+  document.querySelector('.player-pill.small').textContent = `${count} / 6`;
+  if (count > 1) {
+    document.querySelector('#chat-tab').classList.remove('locked');
+    document.querySelector('#chat-input').disabled = false;
+    document.querySelector('.send-button').disabled = false;
+  }
+}
+
+function appendChatMessage(message) {
+  const empty = document.querySelector('.empty-state');
+  if (empty) empty.remove();
+  const line = document.createElement('p');
+  line.className = 'chat-message';
+  line.textContent = `${message.player || 'Joueur'} : ${message.text}`;
+  document.querySelector('#tab-chat').insertBefore(line, document.querySelector('.chat-form'));
+}
+
+function applyGameState(gameState) {
+  state.pieces = gameState.pieces;
+  state.order = gameState.order;
+  state.sourceUrl = gameState.sourceUrl;
+  state.startedAt = gameState.startedAt;
+  document.querySelector('#reference-image').src = state.sourceUrl;
+  renderPuzzle();
+  if (!state.started) startTimer();
+}
+
+function connectSession() {
+  if (!window.WebSocket || window.location.protocol === 'file:') return;
+  socket = new WebSocket(signalUrl);
+  socket.addEventListener('open', () => socket.send(JSON.stringify({ type: 'join', session: sessionId, player: state.playerName || 'Joueur' })));
+  socket.addEventListener('message', (event) => {
+    const message = JSON.parse(event.data);
+    if (message.type === 'joined') { isHost = message.host; updatePlayers(message.count); if (message.pending) showToast('Demande envoyée à l’hôte'); if (message.state) applyGameState(message.state); if (isHost) broadcastGameState(); }
+    if (message.type === 'participant-request' && isHost) { pendingParticipant = message.player; document.querySelector('#participant-message').textContent = `${message.player} souhaite rejoindre la partie et le chat.`; document.querySelector('#participant-modal').classList.remove('hidden'); }
+    if (message.type === 'peer-joined') { updatePlayers(message.count); showToast(`${message.player || 'Un joueur'} a rejoint la partie`); }
+    if (message.type === 'peer-left') updatePlayers(message.count);
+    if (message.type === 'accepted' && message.state) applyGameState(message.state);
+    if (message.type === 'game-state' && !isHost) applyGameState(message.state);
+    if (message.type === 'chat') { appendChatMessage(message); document.querySelector('#chat-tab').classList.add('has-notification'); showToast(`Nouveau message de ${message.player || 'un joueur'}`); }
+    if (message.type === 'full') showToast('Salon complet (6/6)');
+    if (message.type === 'rejected') showToast('Votre demande a été refusée');
+  });
 }
 
 function loadGalleryImage(file) {
@@ -214,7 +283,11 @@ homeImageInput.addEventListener('change', (event) => {
   const url = URL.createObjectURL(file);
   const image = new Image();
   image.addEventListener('load', () => {
-    pendingImageUrl = url;
+    const imageCanvas = document.createElement('canvas');
+    imageCanvas.width = image.naturalWidth;
+    imageCanvas.height = image.naturalHeight;
+    imageCanvas.getContext('2d').drawImage(image, 0, 0);
+    pendingImageUrl = imageCanvas.toDataURL('image/jpeg', 0.9);
     document.querySelector('#image-confirm-preview').src = url;
     document.querySelector('#home-image-label').textContent = file.name;
     document.querySelector('#image-modal').classList.remove('hidden');
@@ -233,8 +306,12 @@ document.querySelector('#confirm-image').addEventListener('click', () => {
   preview.style.backgroundImage = `url(${JSON.stringify(pendingImageUrl)})`;
   preview.textContent = '';
   document.querySelector('#image-modal').classList.add('hidden');
+  stopCamera();
   updateStartState();
 });
+document.querySelector('#cancel-camera').addEventListener('click', () => { stopCamera(); document.querySelector('#camera-modal').classList.add('hidden'); });
+document.querySelector('#take-camera-photo').addEventListener('click', capturePhoto);
+homeCameraButton.addEventListener('click', startCamera);
 document.querySelector('#start-game').addEventListener('click', () => {
   state.playerName = document.querySelector('#player-name').value.trim();
   state.order = [];
@@ -242,24 +319,28 @@ document.querySelector('#start-game').addEventListener('click', () => {
   homeScreen.classList.add('hidden');
   gameScreen.classList.remove('hidden');
   document.querySelector('#preview-initials').textContent = state.playerName.slice(0, 2).toUpperCase();
+  document.querySelector('#player-display-name').textContent = state.playerName;
   document.querySelector('#home-summary-name').textContent = `Partie de ${state.playerName}`;
   renderPuzzle();
+  state.startedAt = Date.now();
   startTimer();
+  connectSession();
 });
 renderPuzzle();
 
-document.querySelector('#start-camera').addEventListener('click', startCamera);
-document.querySelector('#capture-photo').addEventListener('click', capturePhoto);
-document.querySelector('#choose-image')?.addEventListener('click', () => document.querySelector('#image-input').click());
-document.querySelector('#image-input').addEventListener('change', (event) => loadGalleryImage(event.target.files[0]));
+document.querySelector('#return-home').addEventListener('click', () => window.location.href = window.location.pathname);
+document.querySelector('#continue-chat').addEventListener('click', () => { document.querySelector('#finish-modal').classList.add('hidden'); document.querySelector('[data-tab="chat"]').click(); });
+document.querySelector('#accept-participant').addEventListener('click', () => { socket?.send(JSON.stringify({ type: 'participant-response', player: pendingParticipant, accepted: true })); document.querySelector('#participant-modal').classList.add('hidden'); });
+document.querySelector('#reject-participant').addEventListener('click', () => { socket?.send(JSON.stringify({ type: 'participant-response', player: pendingParticipant, accepted: false })); document.querySelector('#participant-modal').classList.add('hidden'); });
 
-document.querySelectorAll('.grid-option').forEach((option) => option.addEventListener('click', () => {
-  document.querySelectorAll('.grid-option').forEach((item) => item.classList.remove('selected'));
-  option.classList.add('selected');
-  state.pieces = Number(option.dataset.pieces);
-  state.order = [];
-  renderPuzzle();
-}));
+document.querySelector('#chat-form').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const input = document.querySelector('#chat-input');
+  if (!input.value.trim() || !socket || socket.readyState !== WebSocket.OPEN) return;
+  socket.send(JSON.stringify({ type: 'chat', player: state.playerName || 'Joueur', text: input.value.trim() }));
+  appendChatMessage({ player: state.playerName || 'Vous', text: input.value.trim() });
+  input.value = '';
+});
 
 ['#share-header', '#share-main', '#invite-panel', '#invite-player', '#copy-link'].forEach((selector) => document.querySelector(selector).addEventListener('click', (event) => copySessionLink(event.currentTarget)));
 
@@ -270,9 +351,6 @@ document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click',
   tab.classList.add('active');
   document.querySelector(`#tab-${tab.dataset.tab}`).classList.remove('hidden');
 }));
-
-document.querySelector('#camera-toggle').addEventListener('click', (event) => { state.camera = !state.camera; event.currentTarget.classList.toggle('off', !state.camera); document.querySelector('#media-state').textContent = `${state.camera ? 'Caméra' : 'Caméra coupée'} et ${state.mic ? 'micro actifs' : 'micro coupé'}`; });
-document.querySelector('#mic-toggle').addEventListener('click', (event) => { state.mic = !state.mic; event.currentTarget.classList.toggle('off', !state.mic); document.querySelector('#media-state').textContent = `${state.camera ? 'Caméra' : 'Caméra coupée'} et ${state.mic ? 'micro actifs' : 'micro coupé'}`; });
 
 document.querySelector('#leave-session').addEventListener('click', () => document.querySelector('#leave-modal').classList.remove('hidden'));
 document.querySelector('#cancel-leave').addEventListener('click', () => document.querySelector('#leave-modal').classList.add('hidden'));
